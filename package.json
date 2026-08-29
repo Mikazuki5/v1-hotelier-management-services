@@ -1,0 +1,24 @@
+{
+  "name": "hotelier-management-system-service",
+  "scripts": {
+    "dev": "bun run --hot src/index.ts"
+  },
+  "dependencies": {
+    "@hono/swagger-ui": "^0.6.1",
+    "@hono/zod-validator": "^0.9.0",
+    "@prisma/adapter-pg": "^7.10.0",
+    "@prisma/client": "^7.10.0",
+    "@types/pg": "^8.23.1",
+    "dotenv": "^17.4.2",
+    "hono": "^4.12.15",
+    "pg": "^8.23.0",
+    "swagger-ui-dist": "^5.32.14",
+    "zod": "^4.5.2"
+  },
+  "devDependencies": {
+    "@prisma/config": "7.10.0",
+    "@types/bun": "^1.4.0",
+    "@types/swagger-ui-dist": "^3.30.6",
+    "prisma": "7.10.0"
+  }
+}

@@ -1,0 +1,315 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Shift {
+  MORNING
+  EVENING
+  NIGHT
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  RECEPTIONIST
+  HOUSEKEEPER
+  ACCOUNTANT
+}
+
+enum IdentityType {
+  KTP
+  PASSPORT
+  SIM
+}
+
+enum RoomStatus {
+  AVAILABLE
+  OCCUPIED
+  DIRTY
+  MAINTENANCE
+}
+
+enum BookingSource {
+  WALK_IN
+  WEBSITE
+  AGODA
+  TRAVELOKA
+  CORPORATE
+}
+
+enum ReservationStatus {
+  PENDING
+  CONFIRMED
+  CHECKED_IN
+  CHECKED_OUT
+  CANCELLED
+  NO_SHOW
+}
+
+enum InvoiceStatus {
+  UNPAID
+  PARTIAL
+  PAID
+  REFUNDED
+}
+
+enum InvoiceItemType {
+  ROOM_CHARGE
+  FNB_RESTAURANT
+  LAUNDRY
+  SPA
+  DAMAGE_PENALTY
+  EXTRA_BED
+}
+
+enum PaymentMethod {
+  CASH
+  CREDIT_CARD
+  DEBIT
+  BANK_TRANSFER
+  OTA_VIRTUAL
+}
+
+enum PaymentStatus {
+  SUCCESS
+  PENDING
+  FAILED
+  REFUNDED
+}
+
+enum HousekeepingTaskType {
+  CLEANING_CHECKOUT
+  DAILY_CLEANING
+  INSPECTION
+  MAINTENANCE
+}
+
+enum HousekeepingTaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  DELAYED
+}
+
+enum InventoryCategory {
+  AMENITIES
+  FNB_INGREDIENTS
+  LINEN
+  CLEANING_SUPPLIES
+  ELECTRONICS
+}
+
+enum InventoryActionType {
+  STOCK_IN
+  STOCK_OUT
+  ADJUSTMENT
+  DEFECT
+}
+
+model User {
+  id           String    @id @default(uuid())
+  employeeId   String    @unique @map("employee_id")
+  firstName    String    @map("first_name")
+  lastName     String    @map("last_name")
+  email        String    @unique
+  phoneNumber  String    @map("phone_number")
+  passwordHash String    @map("password_hash")
+  role         Role      @default(RECEPTIONIST)
+  department   String
+  shift        Shift
+  isActive     Boolean   @default(true) @map("is_active")
+  lastLoginAt  DateTime? @map("last_login_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  reservationsCreated Reservation[]
+  paymentsHandled     Payment[]
+  housekeepingTasks   HousekeepingTask[]
+  inventoryLogs       InventoryLog[]
+
+  @@index([employeeId])
+  @@map("users")
+}
+
+model Guest {
+  id             String       @id @default(uuid())
+  identityType   IdentityType @map("identity_type")
+  identityNumber String       @unique @map("identity_number")
+  firstName      String       @map("first_name")
+  lastName       String       @map("last_name")
+  email          String       @unique
+  phoneNumber    String       @map("phone_number")
+  address        String?      @db.Text
+  isBlacklisted  Boolean      @default(false) @map("is_blacklisted")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  reservations Reservation[]
+
+  @@map("guests")
+}
+
+model RoomType {
+  id           String   @id @default(uuid())
+  name         String
+  description  String?  @db.Text
+  basePrice    Decimal  @map("base_price") @db.Decimal(10, 2)
+  capacity     Int
+  maxExtraBeds Int      @map("max_extra_beds")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  rooms Room[]
+
+  @@map("room_types")
+}
+
+model Room {
+  id          String     @id @default(uuid())
+  roomTypeId  String     @map("room_type_id")
+  roomType    RoomType   @relation(fields: [roomTypeId], references: [id])
+  roomNumber  String     @unique @map("room_number")
+  floorNumber Int        @map("floor_number")
+  status      RoomStatus @default(AVAILABLE)
+  isSmoking   Boolean    @default(false) @map("is_smoking")
+  facilities  String[]
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  reservations      Reservation[]
+  housekeepingTasks HousekeepingTask[]
+
+  @@map("rooms")
+}
+
+model Reservation {
+  id               String            @id @default(uuid())
+  bookingNumber    String            @unique @map("booking_number")
+  guestId          String            @map("guest_id")
+  guest            Guest             @relation(fields: [guestId], references: [id])
+  roomId           String            @map("room_id")
+  room             Room              @relation(fields: [roomId], references: [id])
+  createdBy        String            @map("created_by")
+  user             User              @relation(fields: [createdBy], references: [id])
+  expectedCheckIn  DateTime          @map("expected_check_in")
+  expectedCheckOut DateTime          @map("expected_check_out")
+  actualCheckIn    DateTime?         @map("actual_check_in")
+  actualCheckOut   DateTime?         @map("actual_check_out")
+  adultCount       Int               @map("adult_count")
+  childCount       Int               @map("child_count")
+  bookingSource    BookingSource     @map("booking_source")
+  status           ReservationStatus @default(PENDING)
+  specialRequests  String?           @map("special_requests") @db.Text
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+  deletedAt        DateTime?         @map("deleted_at")
+
+  invoice Invoice?
+
+  @@index([expectedCheckIn])
+  @@index([expectedCheckOut])
+  @@map("reservations")
+}
+
+model Invoice {
+  id             String        @id @default(uuid())
+  reservationId  String        @unique @map("reservation_id")
+  reservation    Reservation   @relation(fields: [reservationId], references: [id])
+  subtotalAmount Decimal       @default(0) @map("subtotal_amount") @db.Decimal(10, 2)
+  taxAmount      Decimal       @default(0) @map("tax_amount") @db.Decimal(10, 2)
+  totalAmount    Decimal       @default(0) @map("total_amount") @db.Decimal(10, 2)
+  paidAmount     Decimal       @default(0) @map("paid_amount") @db.Decimal(10, 2)
+  status         InvoiceStatus @default(UNPAID)
+  dueDate        DateTime?     @map("due_date")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  items    InvoiceItem[]
+  payments Payment[]
+
+  @@map("invoices")
+}
+
+model InvoiceItem {
+  id          String          @id @default(uuid())
+  invoiceId   String          @map("invoice_id")
+  invoice     Invoice         @relation(fields: [invoiceId], references: [id])
+  itemType    InvoiceItemType @map("item_type")
+  description String
+  amount      Decimal         @db.Decimal(10, 2)
+  quantity    Int             @default(1)
+  createdAt   DateTime        @default(now()) @map("created_at")
+
+  @@map("invoice_items")
+}
+
+model Payment {
+  id            String        @id @default(uuid())
+  invoiceId     String        @map("invoice_id")
+  invoice       Invoice       @relation(fields: [invoiceId], references: [id])
+  handledBy     String        @map("handled_by")
+  user          User          @relation(fields: [handledBy], references: [id])
+  paymentMethod PaymentMethod @map("payment_method")
+  amount        Decimal       @db.Decimal(10, 2)
+  referenceCode String?       @map("reference_code")
+  status        PaymentStatus @default(PENDING)
+  createdAt     DateTime      @default(now()) @map("created_at")
+
+  @@index([referenceCode])
+  @@index([createdAt])
+  @@map("payments")
+}
+
+model HousekeepingTask {
+  id          String                 @id @default(uuid())
+  roomId      String                 @map("room_id")
+  room        Room                   @relation(fields: [roomId], references: [id])
+  assignedTo  String                 @map("assigned_to")
+  user        User                   @relation(fields: [assignedTo], references: [id])
+  taskType    HousekeepingTaskType   @map("task_type")
+  status      HousekeepingTaskStatus @default(PENDING)
+  notes       String?                @db.Text
+  startedAt   DateTime?              @map("started_at")
+  completedAt DateTime?              @map("completed_at")
+  createdAt   DateTime               @default(now()) @map("created_at")
+  updatedAt   DateTime               @updatedAt @map("updated_at")
+
+  @@index([createdAt])
+  @@map("housekeeping_tasks")
+}
+
+model InventoryItem {
+  id           String            @id @default(uuid())
+  skuCode      String            @unique @map("sku_code")
+  name         String
+  category     InventoryCategory
+  unitType     String            @map("unit_type")
+  currentStock Int               @default(0) @map("current_stock")
+  minimumStock Int               @default(0) @map("minimum_stock")
+  createdAt    DateTime          @default(now()) @map("created_at")
+  updatedAt    DateTime          @updatedAt @map("updated_at")
+
+  logs InventoryLog[]
+
+  @@index([name])
+  @@map("inventory_items")
+}
+
+model InventoryLog {
+  id         String              @id @default(uuid())
+  itemId     String              @map("item_id")
+  item       InventoryItem       @relation(fields: [itemId], references: [id])
+  handledBy  String              @map("handled_by")
+  user       User                @relation(fields: [handledBy], references: [id])
+  actionType InventoryActionType @map("action_type")
+  quantity   Int
+  notes      String?             @db.Text
+  createdAt  DateTime            @default(now()) @map("created_at")
+
+  @@map("inventory_logs")
+}

@@ -1,0 +1,587 @@
+openapi: 3.0.0
+info:
+  title: Hotelier Management System API
+  version: 1.0.0
+  description: Backend API untuk manajemen operasional hotel (Reservasi, Penagihan, Inventory, & Housekeeping).
+servers:
+  - url: http://localhost:3000/api
+    description: Local Development Server
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+security:
+  - bearerAuth: []
+paths:
+  /auth/register:
+    post:
+      summary: Mendaftarkan akun admin/staff baru
+      tags:
+        - Auth
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+                - employeeId
+                - firstName
+                - lastName
+                - phoneNumber
+                - department
+                - shift
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+                employeeId:
+                  type: string
+                firstName:
+                  type: string
+                lastName:
+                  type: string
+                phoneNumber:
+                  type: string
+                department:
+                  type: string
+                shift:
+                  type: string
+                  enum:
+                    - MORNING
+                    - EVENING
+                    - NIGHT
+                role:
+                  type: string
+                  enum:
+                    - ADMIN
+                    - MANAGER
+                    - RECEPTIONIST
+                    - HOUSEKEEPER
+                    - ACCOUNTANT
+      responses:
+        '201':
+          description: Created
+  /auth/login:
+    post:
+      summary: Login dan mendapatkan JWT Token
+      tags:
+        - Auth
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Berhasil mendapatkan token (termasuk refreshToken)
+  /auth/refresh:
+    post:
+      summary: Mendapatkan Access Token baru menggunakan Refresh Token
+      tags:
+        - Auth
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refreshToken
+              properties:
+                refreshToken:
+                  type: string
+      responses:
+        '200':
+          description: Berhasil mendapatkan token baru
+  /guests:
+    get:
+      summary: Mendapatkan daftar semua tamu
+      tags:
+        - Guests
+      responses:
+        '200':
+          description: Sukses
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                    example: Data retrieved successfully
+                  data:
+                    type: array
+                    items:
+                      type: object
+                  meta:
+                    type: object
+                    properties:
+                      page:
+                        type: integer
+                      limit:
+                        type: integer
+                      totalItems:
+                        type: integer
+                      totalPages:
+                        type: integer
+      parameters:
+        - &ref_0
+          in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Nomor halaman untuk paginasi
+        - &ref_1
+          in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+          description: Jumlah data per halaman
+    post:
+      summary: Mendaftarkan profil tamu baru
+      tags:
+        - Guests
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                identityType:
+                  type: string
+                  example: KTP
+                identityNumber:
+                  type: string
+                firstName:
+                  type: string
+                lastName:
+                  type: string
+                email:
+                  type: string
+                phoneNumber:
+                  type: string
+      responses:
+        '201':
+          description: Tamu berhasil didaftarkan
+  /reservations:
+    post:
+      summary: Membuat Reservasi (Otomatis menerbitkan Invoice)
+      tags:
+        - Reservations
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                guestId:
+                  type: string
+                roomId:
+                  type: string
+                expectedCheckIn:
+                  type: string
+                  format: date-time
+                expectedCheckOut:
+                  type: string
+                  format: date-time
+                adultCount:
+                  type: integer
+                bookingSource:
+                  type: string
+                  example: WALK_IN
+      responses:
+        '201':
+          description: Reservasi berhasil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      bookingNumber:
+                        type: string
+                        example: YH290820260001
+  /invoices/{id}/items:
+    post:
+      summary: Menambahkan tagihan ekstra (Restoran, Laundry, dll) ke dalam Invoice
+      tags:
+        - Billing & Invoice
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                itemType:
+                  type: string
+                  example: FNB_RESTAURANT
+                description:
+                  type: string
+                amount:
+                  type: number
+                quantity:
+                  type: integer
+      responses:
+        '201':
+          description: Tagihan bertambah
+  /payments:
+    post:
+      summary: Memproses pelunasan (Payment) Invoice
+      tags:
+        - Billing & Invoice
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                invoiceId:
+                  type: string
+                paymentMethod:
+                  type: string
+                  example: CREDIT_CARD
+                amount:
+                  type: number
+                referenceCode:
+                  type: string
+      responses:
+        '201':
+          description: Pembayaran sukses
+  /housekeeping:
+    post:
+      summary: Membuat tugas kebersihan kamar
+      tags:
+        - Housekeeping
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                roomId:
+                  type: string
+                assignedTo:
+                  type: string
+                taskType:
+                  type: string
+                  example: DAILY_CLEANING
+      responses:
+        '201':
+          description: Tugas diberikan
+  /housekeeping/{id}/status:
+    put:
+      summary: Mengubah status tugas Housekeeping (Bila COMPLETED, kamar otomatis jadi AVAILABLE)
+      tags:
+        - Housekeeping
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  example: COMPLETED
+      responses:
+        '200':
+          description: Sukses
+  /inventory:
+    post:
+      summary: Mendaftarkan item stok gudang baru
+      tags:
+        - Inventory
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                skuCode:
+                  type: string
+                name:
+                  type: string
+                category:
+                  type: string
+                  example: AMENITIES
+                unitType:
+                  type: string
+                  example: PCS
+      responses:
+        '201':
+          description: Barang terdaftar
+  /inventory/{id}/logs:
+    post:
+      summary: Mencatat mutasi barang keluar masuk (STOCK_IN, STOCK_OUT)
+      tags:
+        - Inventory
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                actionType:
+                  type: string
+                  example: STOCK_IN
+                quantity:
+                  type: integer
+                notes:
+                  type: string
+      responses:
+        '201':
+          description: Mutasi berhasil dan stok diperbarui
+  /dashboard:
+    get:
+      summary: Mendapatkan data agregasi dashboard
+      tags:
+        - Dashboard
+      parameters:
+        - in: query
+          name: filter
+          schema:
+            type: string
+            enum:
+              - day
+              - week
+              - month
+              - year
+              - all
+          description: Filter waktu data (default bulan)
+      responses:
+        '200':
+          description: Sukses mendapatkan metrik dashboard
+  /rooms:
+    get:
+      summary: Mendapatkan daftar semua kamar
+      tags:
+        - Rooms
+      responses:
+        '200':
+          description: Sukses
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                    example: Data retrieved successfully
+                  data:
+                    type: array
+                    items:
+                      type: object
+                  meta:
+                    type: object
+                    properties:
+                      page:
+                        type: integer
+                      limit:
+                        type: integer
+                      totalItems:
+                        type: integer
+                      totalPages:
+                        type: integer
+      parameters:
+        - *ref_0
+        - *ref_1
+    post:
+      summary: Menambahkan kamar baru
+      tags:
+        - Rooms
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - roomNumber
+                - roomTypeId
+                - floorNumber
+              properties:
+                roomNumber:
+                  type: string
+                roomTypeId:
+                  type: string
+                floorNumber:
+                  type: integer
+                isSmoking:
+                  type: boolean
+                  default: false
+                facilities:
+                  type: array
+                  items:
+                    type: string
+                  example:
+                    - Lantai Atas
+                    - Menghadap Kolam
+                    - Wi-Fi Cepat
+                    - TV 43 Inch
+      responses:
+        '201':
+          description: Kamar berhasil ditambahkan
+  /users:
+    get:
+      summary: Mendapatkan daftar semua pengguna (khusus ADMIN)
+      tags:
+        - Users
+      responses:
+        '200':
+          description: Sukses
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                    example: Data retrieved successfully
+                  data:
+                    type: array
+                    items:
+                      type: object
+                  meta:
+                    type: object
+                    properties:
+                      page:
+                        type: integer
+                      limit:
+                        type: integer
+                      totalItems:
+                        type: integer
+                      totalPages:
+                        type: integer
+      parameters:
+        - *ref_0
+        - *ref_1
+  /users/{id}:
+    get:
+      summary: Mendapatkan detail pengguna berdasarkan ID (khusus ADMIN)
+      tags:
+        - Users
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Sukses
+    put:
+      summary: Memperbarui profil/jabatan pengguna (khusus ADMIN)
+      tags:
+        - Users
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                employeeId:
+                  type: string
+                firstName:
+                  type: string
+                lastName:
+                  type: string
+                phoneNumber:
+                  type: string
+                department:
+                  type: string
+                shift:
+                  type: string
+                  enum:
+                    - MORNING
+                    - EVENING
+                    - NIGHT
+                role:
+                  type: string
+                  enum:
+                    - ADMIN
+                    - MANAGER
+                    - RECEPTIONIST
+                    - HOUSEKEEPER
+                    - ACCOUNTANT
+                isActive:
+                  type: boolean
+      responses:
+        '200':
+          description: Pengguna berhasil diperbarui
+    delete:
+      summary: Menonaktifkan pengguna (soft delete, khusus ADMIN)
+      tags:
+        - Users
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Pengguna dinonaktifkan
