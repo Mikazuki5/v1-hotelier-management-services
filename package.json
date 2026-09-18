@@ -13,6 +13,7 @@
     "hono": "^4.12.15",
     "pg": "^8.23.0",
     "swagger-ui-dist": "^5.32.14",
+    "xendit-node": "^7.0.0",
     "zod": "^4.5.2"
   },
   "devDependencies": {

@@ -83,7 +83,7 @@ export class HousekeepingService {
         data: updateData,
         include: { room: true }
       })
-    })
+    }, { maxWait: 10000, timeout: 20000 })
   }
 }
 
