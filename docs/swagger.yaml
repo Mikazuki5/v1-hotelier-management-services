@@ -285,6 +285,53 @@ paths:
       responses:
         '201':
           description: Pembayaran sukses
+  /payments/xendit/invoice:
+    post:
+      summary: Membuat tagihan/link pembayaran Xendit untuk sebuah Invoice
+      tags:
+        - Billing & Invoice
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                invoiceId:
+                  type: string
+                  description: ID dari invoice di HMS
+      responses:
+        '201':
+          description: Berhasil membuat tagihan Xendit
+  /payments/webhook/xendit:
+    post:
+      summary: Webhook URL untuk menerima status pembayaran otomatis dari Xendit (Public)
+      tags:
+        - Billing & Invoice
+      security: []
+      parameters:
+        - in: header
+          name: x-callback-token
+          required: true
+          schema:
+            type: string
+          description: Token verifikasi dari Xendit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                external_id:
+                  type: string
+                  description: Invoice ID yang dikirim
+                status:
+                  type: string
+                  example: PAID
+      responses:
+        '200':
+          description: Webhook diterima dan diproses
   /housekeeping:
     post:
       summary: Membuat tugas kebersihan kamar

@@ -109,7 +109,7 @@ export class InventoryService {
       })
 
       return log
-    })
+    }, { maxWait: 10000, timeout: 20000 })
   }
 }
 

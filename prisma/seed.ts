@@ -135,13 +135,27 @@ async function main() {
     const updatedInvoice = await invoiceService.getInvoiceById(res.invoice.id)
     if (!updatedInvoice) continue
 
-    await paymentService.processPayment({
-      invoiceId: res.invoice.id,
-      paymentMethod: 'CREDIT_CARD',
-      amount: Number(updatedInvoice.totalAmount),
-      referenceCode: `CC-REF-${i}`,
-      handledBy: admin.id
-    })
+    // For half of them, simulate a Xendit Virtual Account payment
+    if (i % 2 === 0) {
+      await prisma.payment.create({
+        data: {
+          invoiceId: res.invoice.id,
+          paymentMethod: 'OTA_VIRTUAL',
+          amount: Number(updatedInvoice.totalAmount),
+          referenceCode: `xnd_dummy_invoice_${i}`,
+          handledBy: admin.id,
+          status: 'PENDING'
+        }
+      })
+    } else {
+      await paymentService.processPayment({
+        invoiceId: res.invoice.id,
+        paymentMethod: 'CREDIT_CARD',
+        amount: Number(updatedInvoice.totalAmount),
+        referenceCode: `CC-REF-${i}`,
+        handledBy: admin.id
+      })
+    }
     await delay(100)
   }
 

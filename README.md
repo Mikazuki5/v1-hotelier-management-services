@@ -242,6 +242,38 @@ Setiap Endpoint yang membutuhkan autorisasi wajib menyertakan Header:
 }
 ```
 
+#### `POST` /payments/xendit/invoice
+> Membuat tagihan/link pembayaran Xendit untuk sebuah Invoice
+
+- **Auth Required**: ✅ Yes
+- **Payload Example**: 
+```json
+{
+  "invoiceId": {
+    "type": "string",
+    "description": "ID dari invoice di HMS"
+  }
+}
+```
+
+#### `POST` /payments/webhook/xendit
+> Webhook URL untuk menerima status pembayaran otomatis dari Xendit (Public)
+
+- **Auth Required**: ❌ No
+- **Payload Example**: 
+```json
+{
+  "external_id": {
+    "type": "string",
+    "description": "Invoice ID yang dikirim"
+  },
+  "status": {
+    "type": "string",
+    "example": "PAID"
+  }
+}
+```
+
 ---
 
 ### 📌 Housekeeping

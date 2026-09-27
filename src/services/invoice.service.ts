@@ -77,7 +77,7 @@ export class InvoiceService {
       })
 
       return newItem
-    })
+    }, { maxWait: 10000, timeout: 20000 })
   }
 
   async removeInvoiceItem(invoiceId: string, itemId: string) {
@@ -115,7 +115,7 @@ export class InvoiceService {
       })
 
       return true
-    })
+    }, { maxWait: 10000, timeout: 20000 })
   }
 }
 
