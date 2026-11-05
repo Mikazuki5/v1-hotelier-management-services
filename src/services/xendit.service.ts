@@ -10,6 +10,8 @@ export class XenditService {
     amount: number;
     description: string;
     customerEmail?: string;
+    successRedirectUrl?: string;
+    failureRedirectUrl?: string;
   }) {
     try {
       const response = await xenditClient.Invoice.createInvoice({
@@ -21,11 +23,24 @@ export class XenditService {
             email: params.customerEmail,
           } : undefined,
           currency: 'IDR',
+          ...(params.successRedirectUrl ? { successRedirectUrl: params.successRedirectUrl } : {}),
+          ...(params.failureRedirectUrl ? { failureRedirectUrl: params.failureRedirectUrl } : {}),
         }
       });
       return response;
     } catch (error: any) {
       throw new Error(`Failed to create Xendit Invoice: ${error.message}`);
+    }
+  }
+
+  async getInvoiceById(invoiceId: string) {
+    try {
+      const response = await xenditClient.Invoice.getInvoiceById({
+        invoiceId,
+      });
+      return response;
+    } catch (error: any) {
+      throw new Error(`Failed to get Xendit Invoice: ${error.message}`);
     }
   }
 

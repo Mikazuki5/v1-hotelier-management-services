@@ -1,0 +1,16 @@
+[build]
+  command = "npx prisma generate"
+  functions = "netlify/functions"
+  publish = "public"
+
+[build.environment]
+  SECRETS_SCAN_OMIT_KEYS = "PORT"
+
+[functions]
+  node_bundler = "esbuild"
+  included_files = ["docs/**"]
+
+[[redirects]]
+  from = "/*"
+  to = "/.netlify/functions/index"
+  status = 200

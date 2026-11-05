@@ -7,7 +7,9 @@ import { authMiddleware, requireRole } from '../middlewares/auth'
 const userRouter = new Hono()
 
 userRouter.use('*', authMiddleware)
-userRouter.use('*', requireRole(['ADMIN']))
+
+const viewUsers = requireRole(['ADMIN', 'MANAGER', 'RECEPTIONIST'])
+const manageUsers = requireRole(['ADMIN'])
 
 const updateUserSchema = z.object({
   employeeId: z.string().optional(),
@@ -20,9 +22,9 @@ const updateUserSchema = z.object({
   isActive: z.boolean().optional()
 })
 
-userRouter.get('/', getAllUsers)
-userRouter.get('/:id', getUserById)
-userRouter.put('/:id', zValidator('json', updateUserSchema), updateUser)
-userRouter.delete('/:id', deleteUser)
+userRouter.get('/', viewUsers, getAllUsers)
+userRouter.get('/:id', manageUsers, getUserById)
+userRouter.put('/:id', manageUsers, zValidator('json', updateUserSchema), updateUser)
+userRouter.delete('/:id', manageUsers, deleteUser)
 
 export default userRouter

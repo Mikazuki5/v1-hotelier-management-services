@@ -1,5 +1,6 @@
 import prisma from '../config/db'
 import { InvoiceItemType } from '@prisma/client'
+import { paymentService } from './payment.service'
 
 interface AddInvoiceItemDTO {
   itemType: InvoiceItemType
@@ -10,6 +11,8 @@ interface AddInvoiceItemDTO {
 
 export class InvoiceService {
   async getAllInvoices(skip: number, take: number) {
+    await paymentService.syncAllPendingXenditPayments()
+
     const [data, totalItems] = await Promise.all([
       prisma.invoice.findMany({
         skip,
@@ -27,6 +30,8 @@ export class InvoiceService {
   }
 
   async getInvoiceById(id: string) {
+    await paymentService.syncAllPendingXenditPayments(id)
+
     return await prisma.invoice.findUnique({
       where: { id },
       include: {

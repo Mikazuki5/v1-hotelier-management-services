@@ -1,5 +1,6 @@
 import prisma from '../config/db'
 import { sign, verify } from 'hono/jwt'
+import { hashPassword, verifyPassword } from '../utils/password'
 
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-for-development-only'
 const REFRESH_JWT_SECRET = process.env.REFRESH_JWT_SECRET || 'refresh-super-secret-key'
@@ -14,7 +15,7 @@ export class AuthService {
       throw new Error('Email already registered')
     }
 
-    const hashedPassword = await Bun.password.hash(data.password)
+    const hashedPassword = await hashPassword(data.password)
 
     const user = await prisma.user.create({
       data: {
@@ -53,7 +54,7 @@ export class AuthService {
       throw new Error('Invalid email or password')
     }
 
-    const isMatch = await Bun.password.verify(data.password, user.passwordHash)
+    const isMatch = await verifyPassword(data.password, user.passwordHash)
     if (!isMatch) {
       throw new Error('Invalid email or password')
     }
