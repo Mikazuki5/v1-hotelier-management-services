@@ -13,7 +13,11 @@ export interface UpdateUserDTO {
 }
 
 export class UserService {
-  async getAllUsers(skip: number, take: number) {
+  async getAllUsers(skip: number, take: number, role?: Role) {
+    const whereClause = {
+      deletedAt: null,
+      ...(role ? { role } : {})
+    }
     const [data, totalItems] = await Promise.all([
       prisma.user.findMany({
         skip,
@@ -33,9 +37,9 @@ export class UserService {
           createdAt: true,
         },
         orderBy: { createdAt: 'desc' },
-        where: { deletedAt: null }
+        where: whereClause
       }),
-      prisma.user.count({ where: { deletedAt: null } })
+      prisma.user.count({ where: whereClause })
     ])
     return { data, totalItems }
   }

@@ -46,7 +46,7 @@ export const processPayment = async (c: Context) => {
 
 export const generateXenditPayment = async (c: Context) => {
   try {
-    const { invoiceId } = await c.req.json()
+    const { invoiceId, successRedirectUrl, failureRedirectUrl } = await c.req.json()
     const user = c.get('user')
     
     if (!user || !user.sub) {
@@ -56,12 +56,30 @@ export const generateXenditPayment = async (c: Context) => {
       return c.json({ success: false, message: 'invoiceId is required' }, 400)
     }
 
-    const xenditInvoice = await paymentService.generateXenditPayment(invoiceId, user.sub)
+    const xenditInvoice = await paymentService.generateXenditPayment(invoiceId, user.sub, {
+      successRedirectUrl,
+      failureRedirectUrl,
+    })
     return c.json({ success: true, data: xenditInvoice }, 201)
   } catch (error: any) {
     if (error.message.includes('not found')) {
       return c.json({ success: false, message: error.message }, 404)
     }
+    return c.json({ success: false, message: error.message }, 500)
+  }
+}
+
+export const syncXenditPayment = async (c: Context) => {
+  try {
+    const body = await c.req.json().catch(() => ({}))
+    const invoiceId = body?.invoiceId || c.req.query('invoiceId')
+    const result = await paymentService.syncAllPendingXenditPayments(invoiceId)
+    return c.json({
+      success: true,
+      message: 'Xendit payment status synchronized',
+      data: result,
+    })
+  } catch (error: any) {
     return c.json({ success: false, message: error.message }, 500)
   }
 }

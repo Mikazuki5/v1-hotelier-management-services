@@ -13,6 +13,8 @@ interface ProcessPaymentDTO {
 
 export class PaymentService {
   async getAllPayments(skip: number, take: number) {
+    await this.syncAllPendingXenditPayments()
+
     const [data, totalItems] = await Promise.all([
       prisma.payment.findMany({
         skip,
@@ -28,6 +30,48 @@ export class PaymentService {
       prisma.payment.count()
     ])
     return { data, totalItems }
+  }
+
+  async syncAllPendingXenditPayments(invoiceId?: string) {
+    try {
+      if (!prisma.payment?.findMany || typeof xenditService.getInvoiceById !== 'function') {
+        return { syncedCount: 0 }
+      }
+
+      const pendingPayments = await prisma.payment.findMany({
+        where: {
+          status: 'PENDING',
+          paymentMethod: 'OTA_VIRTUAL',
+          ...(invoiceId ? { invoiceId } : {}),
+          referenceCode: { not: null },
+          NOT: {
+            referenceCode: { startsWith: 'xnd_dummy_' }
+          }
+        }
+      })
+
+      let syncedCount = 0
+      for (const payment of pendingPayments) {
+        if (!payment.referenceCode) continue
+        try {
+          const xenditInvoice = await xenditService.getInvoiceById(payment.referenceCode)
+          if (xenditInvoice && xenditInvoice.status && xenditInvoice.status !== 'PENDING') {
+            await this.handleXenditWebhook({
+              external_id: payment.invoiceId,
+              id: payment.referenceCode,
+              status: xenditInvoice.status
+            })
+            syncedCount++
+          }
+        } catch (err) {
+          // Ignore individual Xendit lookup errors so read operations never fail
+        }
+      }
+
+      return { syncedCount, checkedCount: pendingPayments.length }
+    } catch (error) {
+      return { syncedCount: 0, checkedCount: 0 }
+    }
   }
 
   async processPayment(data: ProcessPaymentDTO) {
@@ -86,7 +130,11 @@ export class PaymentService {
     }, { maxWait: 10000, timeout: 20000 })
   }
 
-  async generateXenditPayment(invoiceId: string, handledBy: string) {
+  async generateXenditPayment(
+    invoiceId: string,
+    handledBy: string,
+    options?: { successRedirectUrl?: string; failureRedirectUrl?: string }
+  ) {
     const invoice = await prisma.invoice.findUnique({
       where: { id: invoiceId },
       include: {
@@ -101,14 +149,14 @@ export class PaymentService {
 
     const remainingAmount = Number(invoice.totalAmount) - Number(invoice.paidAmount)
     
-    // Check if there's already a pending payment to avoid duplicates? We will just create a new one.
-    
     // Call Xendit
     const xenditResponse = await xenditService.createInvoice({
       externalId: invoice.id,
       amount: remainingAmount,
       description: `Payment for Invoice ${invoice.id}`,
       customerEmail: invoice.reservation.guest.email,
+      ...(options?.successRedirectUrl ? { successRedirectUrl: options.successRedirectUrl } : {}),
+      ...(options?.failureRedirectUrl ? { failureRedirectUrl: options.failureRedirectUrl } : {}),
     })
 
     // Create a pending payment record
@@ -127,9 +175,10 @@ export class PaymentService {
   }
 
   async handleXenditWebhook(payload: any) {
-    // The payload contains external_id (our invoice.id), status (PAID, EXPIRED, etc)
-    const externalId = payload.external_id;
-    const status = payload.status;
+    // The payload contains external_id (our invoice.id), status (PAID, SETTLED, EXPIRED, etc)
+    const externalId = payload.external_id || payload.externalId;
+    const xenditInvoiceId = payload.id;
+    const status = typeof payload.status === 'string' ? payload.status.toUpperCase() : payload.status;
 
     if (status === 'PAID' || status === 'SETTLED') {
       await prisma.$transaction(async (tx) => {
@@ -137,9 +186,16 @@ export class PaymentService {
         if (!invoice) return; // Silent ignore or log
 
         const pendingPayment = await tx.payment.findFirst({
+          where: {
+            invoiceId: externalId,
+            status: 'PENDING',
+            ...(xenditInvoiceId ? { referenceCode: xenditInvoiceId } : {})
+          },
+          orderBy: { createdAt: 'desc' }
+        }) || (xenditInvoiceId ? await tx.payment.findFirst({
           where: { invoiceId: externalId, status: 'PENDING' },
           orderBy: { createdAt: 'desc' }
-        });
+        }) : null);
 
         if (pendingPayment) {
           await tx.payment.update({

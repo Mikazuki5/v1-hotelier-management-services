@@ -256,6 +256,17 @@ Setiap Endpoint yang membutuhkan autorisasi wajib menyertakan Header:
 }
 ```
 
+#### `POST` /payments/xendit/sync
+> Sinkronisasi aktif status pembayaran Xendit (mengubah status `PENDING` menjadi `SUCCESS` / `PAID` secara langsung dari API Xendit)
+
+- **Auth Required**: ✅ Yes
+- **Payload Example**:
+```json
+{
+  "invoiceId": "optional-invoice-uuid"
+}
+```
+
 #### `POST` /payments/webhook/xendit
 > Webhook URL untuk menerima status pembayaran otomatis dari Xendit (Public)
 
@@ -434,10 +445,10 @@ Setiap Endpoint yang membutuhkan autorisasi wajib menyertakan Header:
 ### 📌 Users
 
 #### `GET` /users
-> Mendapatkan daftar semua pengguna (khusus ADMIN)
+> Mendapatkan daftar semua pengguna (ADMIN, MANAGER, RECEPTIONIST)
 
 - **Auth Required**: ✅ Yes
-- **Query Parameters**: `?page=1&limit=10`
+- **Query Parameters**: `?page=1&limit=10&role=HOUSEKEEPER` (opsional `role`)
 - **Paginated Response**:
 ```json
 {

@@ -1,10 +1,13 @@
 import prisma from '../config/db'
 import { Role } from '@prisma/client'
+import { paymentService } from './payment.service'
 
 export type TimeFilter = 'day' | 'week' | 'month' | 'year' | 'all'
 
 export const dashboardService = {
   getDashboardMetrics: async (filter: TimeFilter = 'month', role: Role) => {
+    await paymentService.syncAllPendingXenditPayments()
+
     const now = new Date()
     let startDate: Date | undefined
     const endDate: Date = now

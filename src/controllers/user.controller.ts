@@ -1,11 +1,16 @@
 import { Context } from 'hono'
+import { Role } from '@prisma/client'
 import { userService, UpdateUserDTO } from '../services/user.service'
 import { getPaginationParams, formatPaginatedResponse } from '../utils/pagination'
+
+const VALID_ROLES: Role[] = ['ADMIN', 'MANAGER', 'RECEPTIONIST', 'HOUSEKEEPER', 'ACCOUNTANT']
 
 export const getAllUsers = async (c: Context) => {
   try {
     const { page, limit, skip, take } = getPaginationParams(c)
-    const { data, totalItems } = await userService.getAllUsers(skip, take)
+    const roleParam = c.req.query('role') as Role | undefined
+    const role = roleParam && VALID_ROLES.includes(roleParam) ? roleParam : undefined
+    const { data, totalItems } = await userService.getAllUsers(skip, take, role)
     return c.json(formatPaginatedResponse(data, totalItems, page, limit))
   } catch (error: any) {
     return c.json({ success: false, message: error.message }, 500)

@@ -525,7 +525,7 @@ paths:
           description: Kamar berhasil ditambahkan
   /users:
     get:
-      summary: Mendapatkan daftar semua pengguna (khusus ADMIN)
+      summary: Mendapatkan daftar semua pengguna (ADMIN, MANAGER, RECEPTIONIST)
       tags:
         - Users
       responses:
@@ -559,6 +559,18 @@ paths:
       parameters:
         - *ref_0
         - *ref_1
+        - in: query
+          name: role
+          required: false
+          schema:
+            type: string
+            enum:
+              - ADMIN
+              - MANAGER
+              - RECEPTIONIST
+              - HOUSEKEEPER
+              - ACCOUNTANT
+          description: Filter pengguna berdasarkan role (opsional)
   /users/{id}:
     get:
       summary: Mendapatkan detail pengguna berdasarkan ID (khusus ADMIN)

@@ -7,6 +7,7 @@ import prisma from '../config/db'
 mock.module('../services/xendit.service', () => ({
   xenditService: {
     createInvoice: mock().mockResolvedValue({ id: 'xnd_test_invoice_123' }),
+    getInvoiceById: mock().mockResolvedValue({ id: 'xnd_test_invoice_123', status: 'PAID' }),
     verifyWebhookToken: mock().mockReturnValue(true)
   }
 }))
@@ -20,6 +21,7 @@ mock.module('../config/db', () => ({
     payment: {
       create: mock(),
       findFirst: mock(),
+      findMany: mock(),
       update: mock(),
       updateMany: mock()
     },
@@ -152,5 +154,54 @@ describe('Payment Service - Xendit Reservation Flow', () => {
       where: { invoiceId: mockExternalId, status: 'PENDING' },
       data: { status: 'FAILED' }
     })
+  })
+
+  it('should automatically sync PENDING Xendit payments by querying Xendit API and mark as PAID/SUCCESS', async () => {
+    const mockInvoiceId = 'inv_123'
+    const mockXenditId = 'xnd_test_invoice_123'
+
+    ;(prisma.payment.findMany as any).mockResolvedValue([
+      {
+        id: 'pay_123',
+        invoiceId: mockInvoiceId,
+        paymentMethod: 'OTA_VIRTUAL',
+        status: 'PENDING',
+        referenceCode: mockXenditId
+      }
+    ])
+
+    ;(xenditService.getInvoiceById as any).mockResolvedValue({
+      id: mockXenditId,
+      externalId: mockInvoiceId,
+      status: 'PAID'
+    })
+
+    ;(prisma.$transaction as any).mockImplementation(async (callback: any) => {
+      const txMock = {
+        invoice: {
+          findUnique: mock().mockResolvedValue({ id: mockInvoiceId, totalAmount: 1500000 }),
+          update: mock().mockResolvedValue({})
+        },
+        payment: {
+          findFirst: mock().mockResolvedValue({ id: 'pay_123', status: 'PENDING', referenceCode: mockXenditId }),
+          update: mock().mockResolvedValue({})
+        }
+      }
+      await callback(txMock)
+
+      expect(txMock.payment.update).toHaveBeenCalledWith({
+        where: { id: 'pay_123' },
+        data: { status: 'SUCCESS' }
+      })
+      expect(txMock.invoice.update).toHaveBeenCalledWith({
+        where: { id: mockInvoiceId },
+        data: { status: 'PAID', paidAmount: 1500000 }
+      })
+    })
+
+    const syncResult = await paymentService.syncAllPendingXenditPayments(mockInvoiceId)
+
+    expect(xenditService.getInvoiceById).toHaveBeenCalledWith(mockXenditId)
+    expect(syncResult.syncedCount).toBe(1)
   })
 })

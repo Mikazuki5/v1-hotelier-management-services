@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { getAllPayments, processPayment, generateXenditPayment, xenditWebhook } from '../controllers/payment.controller'
+import { getAllPayments, processPayment, generateXenditPayment, syncXenditPayment, xenditWebhook } from '../controllers/payment.controller'
 import { authMiddleware, requireRole } from '../middlewares/auth'
 
 const paymentRouter = new Hono()
@@ -13,5 +13,6 @@ paymentRouter.use('*', authMiddleware, requireRole(['ADMIN', 'MANAGER', 'RECEPTI
 paymentRouter.get('/', getAllPayments)
 paymentRouter.post('/', processPayment)
 paymentRouter.post('/xendit/invoice', generateXenditPayment)
+paymentRouter.post('/xendit/sync', syncXenditPayment)
 
 export default paymentRouter

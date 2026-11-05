@@ -1,5 +1,6 @@
 import prisma from '../config/db'
 import { BookingSource, ReservationStatus, IdentityType } from '@prisma/client'
+import { paymentService } from './payment.service'
 
 interface GuestInfo {
   identityType: IdentityType
@@ -47,6 +48,8 @@ export class ReservationService {
   }
 
   async getReservationById(id: string) {
+    await paymentService.syncAllPendingXenditPayments()
+
     return await prisma.reservation.findFirst({
       where: { id, deletedAt: null },
       include: {
