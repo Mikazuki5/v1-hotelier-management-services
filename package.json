@@ -1,7 +1,8 @@
 {
   "name": "hotelier-management-system-service",
   "scripts": {
-    "dev": "bun run --hot src/index.ts"
+    "dev": "bun run --hot src/index.ts",
+    "build": "prisma generate"
   },
   "dependencies": {
     "@hono/swagger-ui": "^0.6.1",

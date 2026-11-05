@@ -5,6 +5,7 @@ import { cors } from 'hono/cors'
 import { secureHeaders } from 'hono/secure-headers'
 import { swaggerUI } from '@hono/swagger-ui'
 import { readFileSync } from 'fs'
+import { resolve } from 'path'
 import { errorHandler } from './middlewares/error'
 import prisma from './config/db'
 
@@ -26,7 +27,13 @@ app.use('*', logger())
 app.use('*', cors())
 app.use('*', secureHeaders())
 
-const swaggerFile = readFileSync('./docs/swagger.yaml', 'utf8')
+let swaggerFile = ''
+try {
+  swaggerFile = readFileSync(resolve(process.cwd(), 'docs/swagger.yaml'), 'utf8')
+} catch {
+  // Fallback if docs/swagger.yaml is unavailable in current working directory
+}
+
 app.get('/api/docs/swagger.yaml', (c) => {
   c.header('Content-Type', 'text/yaml')
   return c.text(swaggerFile)
@@ -59,6 +66,8 @@ app.get('/health', async (c) => {
 })
 
 app.onError(errorHandler)
+
+export { app }
 
 export default {
   port: process.env.PORT || 3000,
